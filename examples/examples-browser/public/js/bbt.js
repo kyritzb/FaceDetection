@@ -1,13 +1,10 @@
 //const classes = [ 'amy', 'bernadette', 'howard', 'leonard', 'penny', 'raj', 'sheldon', 'stuart']
-const classes = ['bryan', 'adam', 'danny', 'nick']
+const classes = ['bryan', 'adam', 'danny', 'nick', 'mark', 'fab', "quinn"]
 
 function getFaceImageUri(className, idx) {
-
   let link = "https://raw.githubusercontent.com/kyritzb/FaceDetection/master/examples/images/"
-
   let yeah = link+className+"/"+className+idx+".png"
   return yeah
-  return `${className}/${className}${idx}.png`
 }
 
 function renderFaceImageSelectList(selectListId, onChange, initialValue) {
