@@ -123,6 +123,30 @@
     let withBoxes = true
     let faceMatcher = null
 
+    let isRecording = false;
+    let personCounter = 0;
+    let lastPersonDetected = null;
+    let recordedBlobs = [];
+    var mediaRecorder = null;
+    var stream = null;
+    const MAX_FRAME_IN_A_ROW = 5;
+
+
+    let options = { mimeType: "video/webm;codecs=vp9,opus" };
+		if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+			console.error(`${options.mimeType} is not supported`);
+			options = { mimeType: "video/webm;codecs=vp8,opus" };
+			if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+				console.error(`${options.mimeType} is not supported`);
+				options = { mimeType: "video/webm" };
+				if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+					console.error(`${options.mimeType} is not supported`);
+					options = { mimeType: "" };
+				}
+			}
+    }
+    
+
     function onChangeHideBoundingBoxes(e) {
       withBoxes = !$(e.target).prop('checked')
     }
@@ -139,6 +163,13 @@
       const avgPredictedAge = predictedAges.reduce((total, a) => total + a) / predictedAges.length
       return avgPredictedAge
     }
+
+    function handleDataAvailable(event) {
+        console.log("handleDataAvailable", event);
+        if (event.data && event.data.size > 0) {
+          recordedBlobs.push(event.data);
+        }
+      }
 
     async function onPlay() {
       const videoEl = $('#inputVideo').get(0)
@@ -162,7 +193,7 @@
       updateTimeStats(Date.now() - ts)
 
       
-      if (results) {
+      if (results.length > 0) {
         const canvas = $('#overlay').get(0)
         const dims = faceapi.matchDimensions(canvas, videoEl, true)
 
@@ -170,7 +201,7 @@
 
         const resizedResult = faceapi.resizeResults(results, dims)
         
-        //console.log("results:", results)
+      
   
 
         faceapi.draw.drawDetections(canvas, resizedResult)
@@ -184,8 +215,53 @@
           const { age, gender, genderProbability, landmarks, expressions, descriptor} = resizedResult[i]
           
           const bestMatch = faceMatcher.findBestMatch(descriptor)
-          console.log(bestMatch)
 
+
+          //starts recording
+          if(lastPersonDetected == null && personCounter == 0){
+            //start recoring
+            isRecording = true;
+            lastPersonDetected = bestMatch.label;
+            mediaRecorder = new MediaRecorder(stream, options);
+            mediaRecorder.ondataavailable = handleDataAvailable;
+            mediaRecorder.start();
+            console.log("recording started")
+            //console.log("MediaRecorder started", mediaRecorder);
+          }else if(lastPersonDetected === bestMatch.label){
+          //keeps recording
+            personCounter = 0;
+            console.log("counter reset!")
+          }else{
+            personCounter++;
+
+            console.log("meep:", personCounter)
+          }
+
+          //stops recording
+          if(personCounter >= MAX_FRAME_IN_A_ROW){
+            isRecording = false;
+            personCounter = 0;
+            lastPersonDetected = null
+            mediaRecorder.stop();
+            console.log("stop recording")
+            
+
+            
+            	var delayInMilliseconds = 500;
+            setTimeout((SaveRecording) => {
+              const blob = new Blob(recordedBlobs, { type: "video/webm" });
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.setAttribute("download", "file.webm");
+              document.body.appendChild(a);
+              a.click();
+            }, delayInMilliseconds);
+           
+            
+
+            recordedBlobs = []; // resets recording
+          }
           // interpolate gender predictions over last 30 frames
           // to make the displayed age more stable
           let expression = null
@@ -215,18 +291,16 @@
               results[i].detection.box.bottomLeft
             ).draw(canvas)
           }
-
- 
-
-
-
           faceapi.draw.drawFaceLandmarks(canvas, landmarks)
-  
-         
         }
         
      
       }
+      else{
+        personCounter++;
+        console.log("yeet:",personCounter)
+      }
+    
       
 
       setTimeout(() => onPlay())
@@ -242,13 +316,13 @@
       await faceapi.loadFaceRecognitionModel('/')
 
 
-      faceMatcher = await createBbtFaceMatcher(5)
+      faceMatcher = await createBbtFaceMatcher(2)
 
       changeInputSize(224)
 
       // try to access users webcam and stream the images
       // to the video element
-      const stream = await navigator.mediaDevices.getUserMedia({ video: {} })
+      stream = await navigator.mediaDevices.getUserMedia({ video: {} })
       const videoEl = $('#inputVideo').get(0)
       videoEl.srcObject = stream
     }

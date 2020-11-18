@@ -1,5 +1,5 @@
 //const classes = [ 'amy', 'bernadette', 'howard', 'leonard', 'penny', 'raj', 'sheldon', 'stuart']
-const classes = ['bryan', 'adam', 'danny', 'nick', 'mark', 'fab', "quinn"]
+const classes = ['bryan', 'adam', 'danny', 'nick', 'mark', 'fab', "quinn", "kush"]
 
 function getFaceImageUri(className, idx) {
   let link = "https://raw.githubusercontent.com/kyritzb/FaceDetection/master/examples/images/"
@@ -37,7 +37,6 @@ async function createBbtFaceMatcher(numImagesForTraining = 1) {
   const maxAvailableImagesPerClass = 5
   numImagesForTraining = Math.min(numImagesForTraining, maxAvailableImagesPerClass)
 
-  console.log("Training...")
   const labeledFaceDescriptors = await Promise.all(classes.map(
     async className => {
       const descriptors = []
@@ -46,7 +45,9 @@ async function createBbtFaceMatcher(numImagesForTraining = 1) {
         const img = await faceapi.fetchImage(getFaceImageUri(className, i))
         console.log(getFaceImageUri(className, i))
         let detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor()
-        descriptors.push(detection.descriptor)
+        if(detection){
+          descriptors.push(detection.descriptor)
+        }
       }
 
       return new faceapi.LabeledFaceDescriptors(
